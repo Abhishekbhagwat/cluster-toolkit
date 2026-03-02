@@ -12,6 +12,46 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: very-low
+value: 10
+globalDefault: false
+description: "Very low priority for training workloads"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low
+value: 50
+globalDefault: false
+description: "Low priority for training workloads"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: medium
+value: 100
+globalDefault: false
+description: "Medium priority for training workloads"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high
+value: 500
+globalDefault: false
+description: "High priority for training workloads"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: very-high
+value: 1000
+globalDefault: false
+description: "Very high priority for training workloads"
+---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ResourceFlavor
 metadata:
@@ -23,6 +63,15 @@ spec:
   - effect: NoSchedule
     key: google.com/tpu
     value: "present"
+---
+# Uncomment the following ResourceFlavor when enabling Pathways with a CPU node pool
+apiVersion: kueue.x-k8s.io/v1beta1
+kind: ResourceFlavor
+metadata:
+  name: "cpu-flavor"
+spec:
+  nodeLabels:
+    cloud.google.com/gke-nodepool: ${cpu_node_pool_name}
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: ClusterQueue
@@ -37,11 +86,20 @@ spec:
       resources:
       - name: "google.com/tpu"
         nominalQuota: ${tpu_quota}
+  # Uncomment the following resource group when enabling Pathways with a CPU node pool
+  - coveredResources: ["cpu", "memory"]
+    flavors:
+    - name: "cpu-flavor"
+      resources:
+      - name: "cpu"
+        nominalQuota: ${cpu_quota}
+      - name: "memory"
+        nominalQuota: "${memory_quota}Gi"
 ---
 apiVersion: kueue.x-k8s.io/v1beta1
 kind: LocalQueue
 metadata:
   namespace: "default"
-  name: "user-queue"
+  name: "cluster-queue"
 spec:
   clusterQueue: "cluster-queue"

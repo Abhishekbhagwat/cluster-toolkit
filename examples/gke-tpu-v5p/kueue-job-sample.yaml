@@ -17,7 +17,7 @@ kind: JobSet
 metadata:
   name: tpu-v5p-job-kueue-sample
   labels:
-    kueue.x-k8s.io/queue-name: user-queue
+    kueue.x-k8s.io/queue-name: cluster-queue
 spec:
   replicatedJobs:
   - name: tpu-worker

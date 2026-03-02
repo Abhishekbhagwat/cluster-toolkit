@@ -56,3 +56,9 @@ vars:
   # The name of the compute engine reservation of TPU v5p nodes
   # reservation:
   spot: true
+
+  # CPU Node Pool Configuration (uncomment when enabling Pathways)
+  cpu_node_pool_machine_type: "n2-standard-64"
+  cpu_node_pool_node_count: 2
+  cpu_node_pool_vcpus_per_node: 64
+  cpu_node_pool_memory_gb_per_node: 256

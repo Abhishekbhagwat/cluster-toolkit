@@ -50,6 +50,18 @@ vars:
   # reservation:
   spot: 
 
+  # # To enable Pathways, uncomment the CPU Node Pool variables below
+  # # and the cpu-node-pool module, and set pathways: true.
+  # # Additionally, uncomment the cpu_node_pool_name, cpu_quota, and memory_quota
+  # # lines in the workload-manager-install module.
+  pathways: true
+
+  # # CPU Node Pool Configuration (required for Pathways)
+  # cpu_node_pool_machine_type: "n2-standard-64"
+  # cpu_node_pool_node_count: 2
+  # cpu_node_pool_vcpus_per_node: 64
+  # cpu_node_pool_memory_gb_per_node: 256
+
   version_prefix: "1.32."
 
  # Kueue configuration
@@ -107,7 +119,7 @@ deployment_groups:
       - monitoring.metricWriter
       - monitoring.viewer
       - stackdriver.resourceMetadata.writer
-      - storage.objectViewer
+      - storage.objectAdmin
       - artifactregistry.reader
 
   - id: workload_service_account
@@ -188,6 +200,25 @@ deployment_groups:
         tpu_topology: $(vars.tpu_topology)
     outputs: [instructions]
 
+  # --- PATHWAYS ADDITIONS ---
+  # To enable Pathways, uncomment the cpu-node-pool module below,
+  # uncomment the CPU Node Pool variables in the vars section,
+  # and set pathways: true.
+  - id: cpu-node-pool
+    source: modules/compute/gke-node-pool
+    use: [gke-tpu-v5p-cluster, node_pool_service_account]
+    settings:
+      name: cpu-node-pool
+      disk_type: pd-balanced
+      machine_type: $(vars.cpu_node_pool_machine_type)
+      threads_per_core: 2
+      auto_upgrade: true
+      zones: [$(vars.zone)]
+      disk_size_gb: 200
+      num_node_pools: 1
+      num_slices: 1
+      static_node_count: $(vars.cpu_node_pool_node_count)
+
   # # --- MANAGED LUSTRE ADDITIONS ---
   # # Private Service Access (PSA) requires the compute.networkAdmin role which is
   # # included in the Owner role, but not Editor.
@@ -243,8 +274,16 @@ deployment_groups:
         config_template_vars:
           tpu_quota: $(vars.num_slices * vars.static_node_count * gke-tpu-v5p-pool.tpu_chips_per_node)
           accelerator_type: $(gke-tpu-v5p-pool.tpu_accelerator_type)
+          # Uncomment the following lines when enabling Pathways
+          cpu_node_pool_name: cpu-node-pool
+          cpu_quota: $(vars.cpu_node_pool_node_count * vars.cpu_node_pool_vcpus_per_node)
+          memory_quota: $(vars.cpu_node_pool_node_count * vars.cpu_node_pool_memory_gb_per_node)
       jobset:
         install: true
+      apply_manifests:
+      - source: https://github.com/google/pathways-job/releases/download/v0.1.4/install.yaml
+        server_side_apply: true
+        enable: $(vars.pathways)
 
   - id: gcs-training
     source: modules/file-system/pre-existing-network-storage
